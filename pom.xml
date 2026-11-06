@@ -5,7 +5,7 @@
   <artifactId>signingflow</artifactId>
   <version>0.1.0</version>
   <name>signingflow</name>
-  <description>Official Java SDK for the Signingflow operations used by skills and MCP tools.</description>
+  <description>Official Java SDK for sending a document, reading envelope status, and verifying webhooks with the Signingflow API.</description>
   <url>https://github.com/Signingflow/signingflow-java</url>
   <licenses>
     <license>
