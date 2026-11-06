@@ -24,6 +24,8 @@ jobs:
       - run: mvn -B verify
       - name: Publish coverage badge
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.java == '21'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           percent=$(python3 - << 'PY'
           import xml.etree.ElementTree as ET
