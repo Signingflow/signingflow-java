@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 public final class Redact {
@@ -17,6 +18,11 @@ public final class Redact {
 
     public static String text(String value, String secret) {
         String cleaned = value == null ? "" : value;
+        if (secret != null && !secret.isEmpty()) {
+            cleaned = cleaned.replace(secret, PLACEHOLDER);
+        }
+        // Mixed-case escapes such as %2f and %2F are the same encoding. Fold them before matching.
+        cleaned = uppercasePercentHex(cleaned);
         for (String form : forms(secret)) {
             cleaned = cleaned.replace(form, PLACEHOLDER);
         }
@@ -52,13 +58,35 @@ public final class Redact {
         if (secret == null || secret.isEmpty()) {
             return List.of();
         }
+        String rfc = Urls.rfc3986(secret);
+        String form = formEncode(secret);
         List<String> forms = new ArrayList<>();
-        for (String form : List.of(secret, Urls.rfc3986(secret), formEncode(secret))) {
-            if (!form.isEmpty() && !forms.contains(form)) {
-                forms.add(form);
+        for (String item : List.of(secret, rfc, rfc.toLowerCase(Locale.ROOT), form, form.toLowerCase(Locale.ROOT))) {
+            if (!item.isEmpty() && !forms.contains(item)) {
+                forms.add(item);
             }
         }
         forms.sort(Comparator.comparingInt(String::length).reversed());
         return forms;
+    }
+
+    static String uppercasePercentHex(String value) {
+        StringBuilder out = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char current = value.charAt(i);
+            if (current == '%' && i + 2 < value.length() && hex(value.charAt(i + 1)) && hex(value.charAt(i + 2))) {
+                out.append('%');
+                out.append(Character.toUpperCase(value.charAt(i + 1)));
+                out.append(Character.toUpperCase(value.charAt(i + 2)));
+                i += 2;
+                continue;
+            }
+            out.append(current);
+        }
+        return out.toString();
+    }
+
+    private static boolean hex(char value) {
+        return Character.digit(value, 16) >= 0;
     }
 }

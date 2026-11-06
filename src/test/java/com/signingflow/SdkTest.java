@@ -133,14 +133,19 @@ class SdkTest {
     @Test
     void redactsSlashKeyFromAnApiError() {
         String secret = "df_sk_a/b c+";
-        String echoed = secret + " " + Urls.rfc3986(secret) + " " + Redact.formEncode(secret);
-        server.json(400, "{\"message\":\"" + jsonEscape(echoed) + "\",\"details\":[{\"fieldViolations\":[{\"field\":\"" + jsonEscape(secret) + "\",\"description\":\"Bearer " + jsonEscape(secret) + "\"}]}]}");
+        String lowerRfc = Urls.rfc3986(secret).toLowerCase(java.util.Locale.ROOT);
+        String lowerForm = Redact.formEncode(secret).toLowerCase(java.util.Locale.ROOT);
+        String mixed = "df_sk_a%2fb%20c%2B";
+        String echoed = secret + " " + Urls.rfc3986(secret) + " " + Redact.formEncode(secret) + " " + lowerRfc + " " + lowerForm + " " + mixed;
+        server.json(400, "{\"message\":\"" + jsonEscape(echoed) + "\",\"details\":[{\"fieldViolations\":[{\"field\":\"" + jsonEscape(lowerRfc) + "\",\"description\":\"Bearer " + jsonEscape(secret) + "\"}]}]}");
         SigningflowException.InvalidRequestException error = assertThrows(SigningflowException.InvalidRequestException.class, () -> client(Map.of("key", secret)).envelopes().retrieve(ENVELOPE, ""));
         String text = error.getMessage() + error.fieldViolations().get(0).field() + error.fieldViolations().get(0).description();
         assertFalse(text.contains(secret));
         assertFalse(text.contains("/b c+"));
         assertFalse(text.contains("c+"));
-        assertFalse(text.contains("%2F"));
+        assertFalse(text.toLowerCase(java.util.Locale.ROOT).contains("%2f"));
+        assertFalse(text.toLowerCase(java.util.Locale.ROOT).contains("%2b"));
+        assertFalse(text.contains("%20"));
         assertTrue(error.getMessage().length() <= 501);
     }
 
