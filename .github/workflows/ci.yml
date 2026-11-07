@@ -40,13 +40,13 @@ jobs:
           total = covered + missed
           if total == 0:
               raise SystemExit("line coverage was empty")
-          open(".coverage-percent", "w").write(f"{covered * 100 / total:.4f}")
+          open("coverage-percent.txt", "w").write(f"{covered * 100 / total:.4f}")
           PY
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.java == '21'
         with:
           name: coverage-percent
-          path: .coverage-percent
+          path: coverage-percent.txt
           retention-days: 1
 
   badge:
@@ -63,4 +63,4 @@ jobs:
           name: coverage-percent
       - env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: bash .github/publish-coverage-badge.sh "$(cat .coverage-percent)"
+        run: bash .github/publish-coverage-badge.sh "$(cat coverage-percent.txt)"
