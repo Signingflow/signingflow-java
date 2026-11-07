@@ -6,11 +6,14 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     strategy:
       matrix:
         java: ["21", "25"]
@@ -22,12 +25,10 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
       - run: mvn -B verify
-      - name: Publish coverage badge
+      - name: Save coverage percent
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.java == '21'
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          percent=$(python3 - << 'PY'
+          python3 - << 'PY'
           import xml.etree.ElementTree as ET
           root = ET.parse("target/site/jacoco/jacoco.xml").getroot()
           counters = [item for item in root.findall("counter") if item.get("type") == "LINE"]
@@ -39,7 +40,27 @@ jobs:
           total = covered + missed
           if total == 0:
               raise SystemExit("line coverage was empty")
-          print(f"{covered * 100 / total:.4f}")
+          open(".coverage-percent", "w").write(f"{covered * 100 / total:.4f}")
           PY
-          )
-          bash .github/publish-coverage-badge.sh "$percent"
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.java == '21'
+        with:
+          name: coverage-percent
+          path: .coverage-percent
+          retention-days: 1
+
+  badge:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage-percent
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash .github/publish-coverage-badge.sh "$(cat .coverage-percent)"
